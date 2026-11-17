@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validador e Comparador TOS - Pierre Gy (UFRGS)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #1b365d;
+            --secondary-color: #4b6b94;
+            --success-color: #2e7d32;
+            --accent-color: #d9534f;
+            --warning-color: #f0ad4e;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1300px; margin: 0 auto; }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 { margin: 0; font-size: 24px; }
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: var(--secondary-color); color: white; font-size: 14px; }
+        
+        input[type="number"], input[type="text"] {
+            width: 95%; 
+            padding: 10px; 
+            box-sizing: border-box;
+            border: 2px solid #ccc; 
+            border-radius: 6px; 
+            text-align: center; 
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #fff;
+        }
+        .btn {
+            background-color: var(--primary-color); color: white; border: none;
+            padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; margin-top: 10px;
+        }
+        .btn:hover { background-color: var(--secondary-color); }
+        .btn-success { background-color: var(--success-color); }
+        .btn-danger { background-color: var(--accent-color); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;}
+        
+        .alert-box {
+            padding: 15px; background-color: #f8d7da; color: #721c24;
+            border: 1px solid #f5c6cb; border-radius: 6px; margin-bottom: 20px; display: none; font-size: 15px; font-weight: bold;
+        }
+        .grid-tables { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 1000px) { .grid-tables { grid-template-columns: 1fr 1fr; } }
+        
+        .badge { padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; display: inline-block; }
+        .badge-success { background-color: #d4edda; color: #155724; }
+        .badge-warning { background-color: #fff3cd; color: #856404; }
+        .badge-danger { background-color: #f8d7da; color: #721c24; }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            height: 450px;
+            margin: 0 auto;
+        }
+
+        .interpretation-box {
+            background: #eef2f7;
+            border-left: 5px solid var(--primary-color);
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            header, .grid-tables, .btn, .alert-box { display: none !important; }
+            .card { box-shadow: none; border: none; padding: 0; margin: 0; }
+            .chart-container { height: 380px !important; page-break-inside: avoid; }
+            .interpretation-box { page-break-inside: avoid; margin-top: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Validador e Comparador de Protocolos TOS (Pierre Gy)</h1>
+        <p style="margin:8px 0 0 0; font-size:15px;">DEMIN / UFRGS — Ferramenta de Avaliação de Erro Fundamental</p>
+    </header>
+
+    <div id="gyAlert" class="alert-box">
+        ⚠️ <strong>ALERTA CRÍTICO DE GY:</strong> <span id="alertText"></span>
+    </div>
+
+    <div class="grid-tables">
+        <div class="card">
+            <h3 style="color: var(--primary-color); margin-top:0;">Protocolo Original</h3>
+            <table id="tableOrig">
+                <thead>
+                    <tr>
+                        <th>Etapa</th>
+                        <th>C</th>
+                        <th>d<sub>n</sub> (mm)</th>
+                        <th>M<sub>L</sub> (g)</th>
+                        <th>M<sub>S</sub> (g)</th>
+                        <th>Taxa (M<sub>L</sub>/M<sub>S</sub>)</th>
+                        <th>Var (s)</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyOrig"></tbody>
+            </table>
+            <p style="margin-top:15px; font-size:16px; font-weight:bold;">Erro Global Original: <span id="errOrig" style="color:var(--primary-color);">0.00%</span></p>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--success-color); margin-top:0;">Protocolo Otimizado (Sugerido)</h3>
+            <table id="tableOtim">
+                <thead>
+                    <tr>
+                        <th>Etapa</th>
+                        <th>C</th>
+                        <th>d<sub>n</sub> (mm)</th>
+                        <th>M<sub>L</sub> (g)</th>
+                        <th>M<sub>S</sub> (g)</th>
+                        <th>Taxa (M<sub>L</sub>/M<sub>S</sub>)</th>
+                        <th>Var (s)</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyOtim"></tbody>
+            </table>
+            <button class="btn btn-success" onclick="addOtimStage()">+ Adicionar Etapa</button>
+            <p style="margin-top:15px; font-size:16px; font-weight:bold;">Erro Global Otimizado: <span id="errOtim" style="color:var(--success-color);">0.00%</span></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="text-align:center;">Nomograma Comparativo e Linhas de Variância Global Acumulada</h3>
+        <p style="font-size:14px; color:#555; text-align:center;">O gráfico abaixo exibe o nomograma detalhado. As linhas tracejadas horizontais marcam o patamar da variância global acumulada (s²<sub>total</sub>) de cada protocolo.</p>
+        
+        <div class="chart-container">
+            <canvas id="nomogramChart"></canvas>
+        </div>
+
+        <div class="interpretation-box">
+            <strong>Interpretação Técnica do Aluno:</strong>
+            <p id="interpretationText" style="margin: 8px 0 0 0;"></p>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="exportarPDF()">🖨️ Salvar Relatório em PDF (A4)</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let protocolOrig = [
+        {name: "1", C: 49.73, dn: 2.5, Ml: 20000, Ms: 20000},
+        {name: "2", C: 49.73, dn: 2.5, Ml: 20000, Ms: 2500},
+        {name: "3", C: 135.859, dn: 0.335, Ml: 2500, Ms: 2500},
+        {name: "4", C: 135.859, dn: 0.335, Ml: 2500, Ms: 625},
+        {name: "5", C: 295.109, dn: 0.071, Ml: 625, Ms: 625},
+        {name: "6", C: 295.109, dn: 0.071, Ml: 625, Ms: 150},
+        {name: "7", C: 351.662, dn: 0.010, Ml: 150, Ms: 150},
+        {name: "8", C: 351.662, dn: 0.010, Ml: 150, Ms: 1}
+    ];
+
+    let protocolOtim = [
+        {name: "1", C: 49.73, dn: 2.5, Ml: 20000, Ms: 20000},
+        {name: "2", C: 49.73, dn: 2.5, Ml: 20000, Ms: 5000},
+        {name: "3", C: 135.859, dn: 0.335, Ml: 5000, Ms: 5000},
+        {name: "4", C: 135.859, dn: 0.335, Ml: 5000, Ms: 1000},
+        {name: "5", C: 295.109, dn: 0.071, Ml: 1000, Ms: 1000},
+        {name: "6", C: 295.109, dn: 0.071, Ml: 1000, Ms: 250},
+        {name: "7", C: 351.662, dn: 0.010, Ml: 250, Ms: 250},
+        {name: "8", C: 351.662, dn: 0.010, Ml: 250, Ms: 50}
+    ];
+
+    let nomogramInstance = null;
+
+    function initApp() {
+        renderTables();
+        calculateAndPlot();
+    }
+
+    function renderTables() {
+        const tbodyOrig = document.getElementById('tbodyOrig');
+        tbodyOrig.innerHTML = '';
+        protocolOrig.forEach(st => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td><b>${st.name}</b></td><td>${st.C}</td><td>${st.dn}</td><td>${st.Ml}</td><td>${st.Ms}</td><td id="rateOrig_${st.name}">-</td><td id="varOrig_${st.name}">-</td>`;
+            tbodyOrig.appendChild(tr);
+        });
+
+        const tbodyOtim = document.getElementById('tbodyOtim');
+        tbodyOtim.innerHTML = '';
+        protocolOtim.forEach((st, idx) => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" value="${st.name}" onchange="updateOtim(${idx}, 'name', this.value)"></td>
+                <td><input type="number" step="0.001" value="${st.C}" onchange="updateOtim(${idx}, 'C', this.value)"></td>
+                <td><input type="number" step="0.001" value="${st.dn}" onchange="updateOtim(${idx}, 'dn', this.value)"></td>
+                <td><input type="number" step="1" value="${st.Ml}" onchange="updateOtim(${idx}, 'Ml', this.value)"></td>
+                <td><input type="number" step="1" value="${st.Ms}" onchange="updateOtim(${idx}, 'Ms', this.value)"></td>
+                <td id="rateOtim_${idx}">-</td>
+                <td id="varOtim_${idx}">-</td>
+                <td><button class="btn-danger" onclick="removeOtim(${idx})">X</button></td>
+            `;
+            tbodyOtim.appendChild(tr);
+        });
+    }
+
+    function addOtimStage() {
+        protocolOtim.push({name: "Nova", C: 100, dn: 0.1, Ml: 100, Ms: 50});
+        initApp();
+    }
+
+    function removeOtim(idx) {
+        protocolOtim.splice(idx, 1);
+        initApp();
+    }
+
+    function updateOtim(idx, field, val) {
+        if(field === 'name') protocolOtim[idx][field] = val;
+        else protocolOtim[idx][field] = parseFloat(val) || 0;
+        calculateAndPlot();
+    }
+
+    function processProtocol(data, isOtim = false) {
+        let stotal = 0;
+        let vars = [];
+        let maxLimitExceeded = false;
+        let messages = [];
+
+        data.forEach((st, idx) => {
+            const rate = st.Ms > 0 ? (st.Ml / st.Ms) : 0;
+            if (isOtim) {
+                const rateTd = document.getElementById(`rateOtim_${idx}`);
+                if (rateTd) {
+                    if (rate > 10) {
+                        rateTd.innerHTML = `<span class="badge badge-danger">${rate.toFixed(1)}x ❌</span>`;
+                        maxLimitExceeded = true;
+                        messages.push(`Etapa ${st.name}: Taxa de ${rate.toFixed(1)}x excede o limite máximo de 10x de Pierre Gy!`);
+                    } else if (rate > 5) {
+                        rateTd.innerHTML = `<span class="badge badge-warning">${rate.toFixed(1)}x ⚠️</span>`;
+                    } else {
+                        rateTd.innerHTML = `<span class="badge badge-success">${rate.toFixed(1)}x ✔️</span>`;
+                    }
+                }
+            } else {
+                const rateTd = document.getElementById(`rateOrig_${st.name}`);
+                if (rateTd) {
+                    if (rate > 10) rateTd.innerHTML = `<span class="badge badge-danger">${rate.toFixed(1)}x ❌</span>`;
+                    else if (rate > 5) rateTd.innerHTML = `<span class="badge badge-warning">${rate.toFixed(1)}x ⚠️</span>`;
+                    else rateTd.innerHTML = `<span class="badge badge-success">${rate.toFixed(1)}x ✔️</span>`;
+                }
+            }
+
+            let s = st.Ml === st.Ms ? st.C * Math.pow(st.dn, 3) / st.Ms : st.C * Math.pow(st.dn, 3) * ((1.0 / st.Ms) - (1.0 / st.Ml));
+            stotal += s;
+            vars.push(s);
+        });
+
+        return { stotal, err: Math.sqrt(stotal) * 100, vars, maxLimitExceeded, messages };
+    }
+
+    function calculateAndPlot() {
+        let resOrig = processProtocol(protocolOrig, false);
+        let resOtim = processProtocol(protocolOtim, true);
+
+        protocolOrig.forEach((st, idx) => { document.getElementById(`varOrig_${st.name}`).innerText = resOrig.vars[idx].toExponential(2); });
+        protocolOtim.forEach((st, idx) => { document.getElementById(`varOtim_${idx}`).innerText = resOtim.vars[idx].toExponential(2); });
+
+        document.getElementById('errOrig').innerText = resOrig.err.toFixed(2) + "% (Stotal = " + resOrig.stotal.toFixed(4) + ")";
+        document.getElementById('errOtim').innerText = resOtim.err.toFixed(2) + "% (Stotal = " + resOtim.stotal.toFixed(4) + ")";
+
+        let interText = `O protocolo original apresenta um Erro Total Acumulado de <b>${resOrig.err.toFixed(2)}%</b> (Variância Global Stotal = ${resOrig.stotal.toFixed(4)}). `;
+        interText += `Com a otimização, o protocolo otimizado alcança um Erro Total de <b>${resOtim.err.toFixed(2)}%</b> (Variância Global Stotal = ${resOtim.stotal.toFixed(4)}). `;
+        interText += resOtim.err < resOrig.err ? `Isso demonstra uma redução expressiva no Erro Fundamental de Amostragem (FSE), validando a eficácia do ajuste granulométrico e das massas de retenção conforme os preceitos de Pierre Gy.` : `Atenção: O protocolo otimizado não apresentou melhoria no erro global. Recomenda-se aumentar as massas nas etapas iniciais.`;
+        document.getElementById('interpretationText').innerHTML = interText;
+
+        const alertBox = document.getElementById('gyAlert');
+        const alertText = document.getElementById('alertText');
+        if (resOtim.maxLimitExceeded) {
+            alertText.innerHTML = resOtim.messages.join("<br>") + "<br><strong>Aviso:</strong> A lei de Gy não permite reduções de massa maiores que 10 vezes.";
+            alertBox.style.display = "block";
+        } else {
+            alertBox.style.display = "none";
+        }
+
+        updateNomogram(resOrig, resOtim);
+    }
+
+    function updateNomogram(resOrig, resOtim) {
+        const ctx = document.getElementById('nomogramChart').getContext('2d');
+        if(nomogramInstance) nomogramInstance.destroy();
+
+        let pointsOrig = protocolOrig.map((s, i) => ({x: s.Ms, y: resOrig.vars[i]}));
+        let pointsOtim = protocolOtim.map((s, i) => ({x: s.Ms, y: resOtim.vars[i]}));
+        let lineOrig = [{x: 0.5, y: resOrig.stotal}, {x: 50000, y: resOrig.stotal}];
+        let lineOtim = [{x: 0.5, y: resOtim.stotal}, {x: 50000, y: resOtim.stotal}];
+
+        nomogramInstance = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    { label: 'Protocolo Original', data: pointsOrig, backgroundColor: '#1b365d', borderColor: '#1b365d', showLine: true, pointRadius: 6, order: 2 },
+                    { label: 'Var. Global Original (Stotal = ' + resOrig.stotal.toFixed(4) + ')', data: lineOrig, type: 'line', borderColor: '#1b365d', borderWidth: 2, borderDash: [6, 6], pointRadius: 0, order: 3 },
+                    { label: 'Protocolo Otimizado', data: pointsOtim, backgroundColor: '#2e7d32', borderColor: '#2e7d32', showLine: true, pointRadius: 6, order: 0 },
+                    { label: 'Var. Global Otimizada (Stotal = ' + resOtim.stotal.toFixed(4) + ')', data: lineOtim, type: 'line', borderColor: '#2e7d32', borderWidth: 2, borderDash: [6, 6], pointRadius: 0, order: 1 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { type: 'logarithmic', title: {display: true, text: 'Massa da Amostra Ms (g) [escala log]'} },
+                    y: { type: 'logarithmic', title: {display: true, text: 'Variância do Erro Fundamental [escala log]'} }
+                }
+            }
+        });
+    }
+
+    function exportarPDF() {
+        window.print();
+    }
+
+    window.onload = initApp;
+</script>
+
+</body>
+</html>
